@@ -59,6 +59,9 @@ parameters:
   - name: AdditionalMatrixConfigs
     type: object
     default: []
+  - name: MatrixFilters
+    type: object
+    default: []
 
 stages:
 - ${{ each cloud in parameters.CloudConfig }}:
