@@ -59,11 +59,6 @@ parameters:
   - name: AdditionalMatrixConfigs
     type: object
     default: []
-  - name: MatrixFilters
-    type: object
-    default:
-      # Include all test scenarios except min/max tests by default
-      - 'DependencyVersion=^$'
 
 stages:
 - ${{ each cloud in parameters.CloudConfig }}:
