@@ -57,9 +57,9 @@ module.exports = function(config) {
 
     envPreprocessor: [
       "TEST_MODE",
-      "ENDPOINT",
-      "TEXT_ANALYTICS_API_KEY",
-      "TEXT_ANALYTICS_API_KEY_ALT",
+      "AZURE_BATCH_ENDPOINT",
+      "AZURE_BATCH_ACCOUNT_KEY",
+      "AZURE_BATCH_ACCOUNT_NAME",
       "AZURE_CLIENT_ID",
       "AZURE_CLIENT_SECRET",
       "AZURE_TENANT_ID"
