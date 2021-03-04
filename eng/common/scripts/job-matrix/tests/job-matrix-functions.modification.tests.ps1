@@ -217,3 +217,47 @@ Describe "Platform Matrix Import" -Tag "import" {
         CompareMatrices $matrix $expected
     }
 }
+
+Describe "Platform Matrix Import/Replace" -Tag "replace" {
+    It "Should import a sparse matrix and replace values" {
+        $matrixJson = @'
+{
+    "matrix": {
+        "$IMPORT": "./test-import-matrix.json"
+    },
+    "replace": {
+        "Foo": {
+            "foo1": "foo1Replaced",
+            "foo.*": "fooDefaultReplaced"
+        },
+        ".*": {
+            "B.z": "bazReplaced"
+        }
+    }
+}
+'@
+        $expectedMatrix = @'
+[
+  {
+    "parameters": { "Foo": "foo1Replaced", "Bar": "bar1" },
+    "name": "foo1Replaced_bar1"
+  },
+  {
+    "parameters": { "Foo": "fooDefaultReplaced", "Bar": "bar2" },
+    "name": "fooDefaultReplaced_bar2"
+  },
+  {
+    "parameters": { "Baz": "bazReplaced" },
+    "name": "bazReplaced"
+  }
+]
+'@
+
+        $importConfig = GetMatrixConfigFromJson $matrixJson
+        $matrix = GenerateMatrix $importConfig "sparse"
+        $expected = $expectedMatrix | ConvertFrom-Json -AsHashtable
+
+        $matrix.Length | Should -Be 3
+        CompareMatrices $matrix $expected
+    }
+}

@@ -7,6 +7,8 @@ class MatrixConfig {
     [System.Collections.Specialized.OrderedDictionary]$orderedMatrix
     [Array]$include
     [Array]$exclude
+    [PSCustomObject]$replace
+    [System.Collections.Specialized.OrderedDictionary]$replaceLookup
 }
 
 $IMPORT_KEYWORD = '$IMPORT'
@@ -52,6 +54,9 @@ function GenerateMatrix(
     }
     if ($config.include) {
         [Array]$matrix = ProcessIncludes $config $matrix $selectFromMatrixType
+    }
+    if ($config.replace) {
+        [Array]$matrix = ProcessReplace $matrix $config.replaceLookup $config.displayNamesLookup
     }
 
     [Array]$matrix = FilterMatrixDisplayName $matrix $displayNameFilter
@@ -134,6 +139,7 @@ function GetMatrixConfigFromJson([String]$jsonConfig)
     [MatrixConfig]$config = $jsonConfig | ConvertFrom-Json
     $config.orderedMatrix = [ordered]@{}
     $config.displayNamesLookup = @{}
+    $config.replaceLookup = [ordered]@{}
 
     if ($null -ne $config.matrix) {
         $config.matrix.PSObject.Properties | ForEach-Object {
@@ -145,22 +151,27 @@ function GetMatrixConfigFromJson([String]$jsonConfig)
             $config.displayNamesLookup.Add($_.Name, $_.Value)
         }
     }
-    $config.include = $config.include | Where-Object { $null -ne $_ } | ForEach-Object {
-        $ordered = [ordered]@{}
-        $_.PSObject.Properties | ForEach-Object {
-            $ordered.Add($_.Name, $_.Value)
+    if ($null -ne $config.replace) {
+        $config.replace.PSObject.Properties | ForEach-Object {
+            $config.replaceLookup.Add($_.Name, $_.Value)
         }
-        return $ordered
     }
-    $config.exclude = $config.exclude | Where-Object { $null -ne $_ } | ForEach-Object {
-        $ordered = [ordered]@{}
-        $_.PSObject.Properties | ForEach-Object {
-            $ordered.Add($_.Name, $_.Value)
-        }
-        return $ordered
-    }
+    $config.include = $config.include | ForEach-Object { ConvertPsObjectToOrderedDictionary $_ }
+    $config.exclude = $config.exclude | ForEach-Object { ConvertPsObjectToOrderedDictionary $_ }
 
     return $config
+}
+
+function ConvertPsObjectToOrderedDictionary([PSCustomObject]$obj)
+{
+    if ($obj -eq $null) {
+        return $null
+    }
+    $ordered = [ordered]@{}
+    $_.PSObject.Properties | ForEach-Object {
+        $ordered.Add($_.Name, $_.Value)
+    }
+    return $ordered
 }
 
 function ProcessExcludes([Array]$matrix, [Array]$excludes)
@@ -194,6 +205,41 @@ function ProcessIncludes([MatrixConfig]$config, [Array]$matrix)
     }
 
     return $matrix + $inclusionMatrix
+}
+
+function ProcessReplace
+{
+    param(
+        [Array]$matrix,
+        [System.Collections.Specialized.OrderedDictionary]$replacements,
+        [Hashtable]$displayNamesLookup
+    )
+
+    $replaceMatrix = @()
+
+    foreach ($element in $matrix) {
+        $replacement = [ordered]@{}
+
+        foreach ($param in $element.parameters.GetEnumerator()) {
+            $replaceValue = $param.Value
+            :matchLoop foreach ($keyMatch in $replacements.Keys) {
+                if ($param.Name -match $keyMatch) {
+                    foreach ($valueMatch in $replacements[$keyMatch].PSObject.Properties) {
+                        if ($param.Value -match $valueMatch.Name) {
+                            $replaceValue = $valueMatch.Value
+                            break matchLoop
+                        }
+                    }
+                }
+            }
+
+            $replacement.Add($param.Name, $replaceValue)
+        }
+
+        $replaceMatrix += CreateMatrixEntry $replacement $displayNamesLookup
+    }
+
+    return $replaceMatrix
 }
 
 function ProcessImport([System.Collections.Specialized.OrderedDictionary]$matrix, [String]$selection)
